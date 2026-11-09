@@ -1,10 +1,19 @@
 import Link from "next/link";
+import { DesignGrid, designCardSelect } from "@/components/DesignCard";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const categories = await db.category.findMany({ orderBy: { position: "asc" } });
+  const [categories, recent] = await Promise.all([
+    db.category.findMany({ orderBy: { position: "asc" } }),
+    db.design.findMany({
+      where: { removedAt: null },
+      select: designCardSelect,
+      orderBy: { createdAt: "desc" },
+      take: 12,
+    }),
+  ]);
   return (
     <div>
       <section className="mx-auto max-w-3xl px-4 pb-12 pt-16 text-center sm:pt-24">
@@ -41,6 +50,15 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      {recent.length > 0 && (
+        <section className="mx-auto max-w-6xl px-4 pb-20">
+          <h2 className="text-sm font-medium uppercase tracking-wider text-muted">Recently added</h2>
+          <div className="mt-4">
+            <DesignGrid designs={recent} />
+          </div>
+        </section>
+      )}
     </div>
   );
 }

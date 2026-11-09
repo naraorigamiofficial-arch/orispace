@@ -176,6 +176,8 @@ model Design {
   // Who uploaded it. A staff member when shared on behalf of the designer.
   postedById String
   postedBy   User       @relation("DesignPostedBy", fields: [postedById], references: [id], onDelete: Restrict)
+  // True when ORISPACE Staff shared it on behalf of the designer. Stays true even if the designer later claims it.
+  sharedByStaff Boolean @default(false)
   categoryId String
   category   Category   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   tags       String[]
