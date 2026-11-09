@@ -1,0 +1,330 @@
+// ORISPACE database design.
+// The design is the center of everything. Designers are credited entries,
+// users are the people who log in.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- People and access ----------
+
+enum Role {
+  MEMBER
+  DESIGNER
+  STAFF
+  ADMIN
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String
+  username        String    @unique
+  passwordHash    String
+  role            Role      @default(MEMBER)
+  emailVerifiedAt DateTime?
+  avatarUrl       String?
+  bio             String?
+  disabledAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  sessions        Session[]
+  tokens          EmailToken[]
+  stars           Star[]
+  comments        Comment[]
+  designer        Designer?             @relation("DesignerAccount")
+  createdDesigners Designer[]           @relation("DesignerCreatedBy")
+  postedDesigns   Design[]              @relation("DesignPostedBy")
+  applications    DesignerApplication[] @relation("ApplicationApplicant")
+  reviewedApplications DesignerApplication[] @relation("ApplicationReviewer")
+  activity        ActivityLog[]
+  reports         Report[]              @relation("ReportReporter")
+  resolvedReports Report[]              @relation("ReportResolver")
+}
+
+model Session {
+  // The id is a hash of the token stored in the browser cookie.
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+enum EmailTokenType {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+model EmailToken {
+  id        String         @id @default(cuid())
+  tokenHash String         @unique
+  type      EmailTokenType
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime       @default(now())
+
+  @@index([userId])
+}
+
+// ---------- Designers ----------
+
+// A designer entry exists whether or not the designer has an account.
+// userId is empty for unclaimed entries created by staff (for example Satoshi Kamiya).
+model Designer {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  bio         String?
+  country     String?
+  website     String?
+  instagram   String?
+  shopUrl     String?
+  userId      String?  @unique
+  user        User?    @relation("DesignerAccount", fields: [userId], references: [id], onDelete: SetNull)
+  createdById String?
+  createdBy   User?    @relation("DesignerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  designs      Design[]
+  applications DesignerApplication[]
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
+// Used both for new designers and for claiming an existing designer entry (designerId set).
+model DesignerApplication {
+  id           String            @id @default(cuid())
+  applicantId  String
+  applicant    User              @relation("ApplicationApplicant", fields: [applicantId], references: [id], onDelete: Cascade)
+  designerId   String?
+  designer     Designer?         @relation(fields: [designerId], references: [id], onDelete: SetNull)
+  name         String
+  country      String?
+  bio          String?
+  links        String
+  message      String?
+  status       ApplicationStatus @default(PENDING)
+  reviewedById String?
+  reviewedBy   User?             @relation("ApplicationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime          @default(now())
+
+  @@index([status])
+}
+
+// ---------- Designs ----------
+
+model Category {
+  id       String   @id @default(cuid())
+  slug     String   @unique
+  name     String
+  position Int      @default(0)
+  designs  Design[]
+}
+
+model Technique {
+  id      String   @id @default(cuid())
+  slug    String   @unique
+  name    String
+  designs Design[]
+}
+
+model PaperType {
+  id      String   @id @default(cuid())
+  slug    String   @unique
+  name    String
+  designs Design[]
+}
+
+enum Difficulty {
+  SIMPLE
+  INTERMEDIATE
+  COMPLEX
+  SUPER_COMPLEX
+}
+
+enum Structure {
+  SINGLE_SHEET
+  MODULAR
+}
+
+model Design {
+  id         String     @id @default(cuid())
+  slug       String     @unique
+  title      String
+  year       Int?
+  notes      String?
+  designerId String
+  designer   Designer   @relation(fields: [designerId], references: [id], onDelete: Restrict)
+  // Who uploaded it. A staff member when shared on behalf of the designer.
+  postedById String
+  postedBy   User       @relation("DesignPostedBy", fields: [postedById], references: [id], onDelete: Restrict)
+  categoryId String
+  category   Category   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  tags       String[]
+  techniques Technique[]
+
+  difficulty         Difficulty?
+  structure          Structure   @default(SINGLE_SHEET)
+  usesCuts           Boolean     @default(false)
+  startingShape      String?
+  squareSizeCm       Float?
+  modelSizeCm        Float?
+  stepCount          Int?
+  foldingTimeMinutes Int?
+
+  paperTypeId    String?
+  paperType      PaperType? @relation(fields: [paperTypeId], references: [id], onDelete: SetNull)
+  paperSize      String?
+  paperColor     String?
+  paperTreatment String?
+
+  photos           DesignPhoto[]
+  instructionLinks InstructionLink[]
+  paperShopLinks   PaperShopLink[]
+  stars            Star[]
+  comments         Comment[]
+  reports          Report[]
+
+  starCount   Int       @default(0)
+  // Set once, the first time the design passes 100 stars. Never cleared.
+  starboardAt DateTime?
+  removedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([designerId])
+  @@index([categoryId])
+  @@index([starboardAt])
+  @@index([starCount])
+}
+
+model DesignPhoto {
+  id       String @id @default(cuid())
+  designId String
+  design   Design @relation(fields: [designId], references: [id], onDelete: Cascade)
+  url      String
+  alt      String?
+  position Int    @default(0)
+
+  @@index([designId])
+}
+
+enum InstructionType {
+  CREASE_PATTERN
+  DIAGRAM
+  VIDEO
+  BOOK
+}
+
+model InstructionLink {
+  id        String          @id @default(cuid())
+  designId  String
+  design    Design          @relation(fields: [designId], references: [id], onDelete: Cascade)
+  type      InstructionType
+  label     String
+  url       String
+  bookTitle String?
+  position  Int             @default(0)
+
+  @@index([designId])
+}
+
+model PaperShopLink {
+  id       String @id @default(cuid())
+  designId String
+  design   Design @relation(fields: [designId], references: [id], onDelete: Cascade)
+  shopName String
+  url      String
+  position Int    @default(0)
+
+  @@index([designId])
+}
+
+// ---------- Community ----------
+
+model Star {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  designId  String
+  design    Design   @relation(fields: [designId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, designId])
+  @@index([designId])
+}
+
+model Comment {
+  id        String    @id @default(cuid())
+  designId  String
+  design    Design    @relation(fields: [designId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parentId  String?
+  parent    Comment?  @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentThread")
+  body      String
+  editedAt  DateTime?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  reports   Report[]
+
+  @@index([designId, createdAt])
+  @@index([parentId])
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+model Report {
+  id           String       @id @default(cuid())
+  reporterId   String
+  reporter     User         @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  commentId    String?
+  comment      Comment?     @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  designId     String?
+  design       Design?      @relation(fields: [designId], references: [id], onDelete: Cascade)
+  reason       String
+  status       ReportStatus @default(OPEN)
+  resolvedById String?
+  resolvedBy   User?        @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt   DateTime?
+  createdAt    DateTime     @default(now())
+
+  @@index([status])
+}
+
+// Every staff and admin action is recorded here.
+model ActivityLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actor      User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  action     String
+  targetType String?
+  targetId   String?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+}

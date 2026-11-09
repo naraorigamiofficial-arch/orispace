@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/* ORISPACE design tokens: paper white, ink black, one vermilion accent. */
+@theme {
+  --color-paper: #faf8f4;
+  --color-card: #ffffff;
+  --color-ink: #1c1b19;
+  --color-muted: #6b675f;
+  --color-line: #e6e1d7;
+  --color-accent: #c8402e;
+  --color-accent-ink: #ffffff;
+  --color-soft: #f2eee6;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-paper: #151412;
+    --color-card: #1e1d1a;
+    --color-ink: #f1ede6;
+    --color-muted: #a39e94;
+    --color-line: #34322d;
+    --color-accent: #e2614d;
+    --color-soft: #262420;
+  }
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition disabled:opacity-60;
+}
+@utility btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition disabled:opacity-60 bg-accent text-accent-ink hover:brightness-110;
+}
+@utility btn-quiet {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition disabled:opacity-60 border border-line bg-card hover:bg-soft;
+}
+@utility input {
+  @apply w-full rounded-xl border border-line bg-card px-4 py-2.5 text-base outline-none focus:border-ink;
+}
+@utility label {
+  @apply mb-1.5 block text-sm font-medium;
+}
+@utility card {
+  @apply rounded-2xl border border-line bg-card;
+}
