@@ -15,7 +15,7 @@ A public home for original origami designs. The full product spec lives in the o
 Next.js 16 (App Router, server actions), PostgreSQL with Prisma 6, Tailwind 4, email through Resend.
 Login is our own email and password system in `src/lib/auth.ts` (sessions stored hashed in the database).
 The account whose email matches `ADMIN_EMAIL` becomes admin once that email is confirmed.
-Design photos are resized in the browser, then stored in Vercel Blob (`BLOB_READ_WRITE_TOKEN`). Locally they go to `.uploads/`.
+Design photos are resized in the browser, then stored in Vercel Blob (OIDC via `BLOB_STORE_ID`, or `BLOB_READ_WRITE_TOKEN`). Locally they go to `.uploads/`.
 `Design.sharedByStaff` marks designs staff shared on behalf of a designer. Edit rights live in `canEditDesign` (`src/lib/designs.ts`).
 
 ## Commands

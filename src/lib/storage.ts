@@ -14,7 +14,7 @@ export const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
 export const LOCAL_UPLOAD_DIR = path.join(process.cwd(), ".uploads");
 
 // Saves a photo and returns its public address.
-// On Vercel (BLOB_READ_WRITE_TOKEN set) photos go to Vercel Blob. Locally they go to the .uploads folder.
+// On Vercel (BLOB_STORE_ID or BLOB_READ_WRITE_TOKEN set) photos go to Vercel Blob. Locally they go to the .uploads folder.
 export async function savePhoto(file: File) {
   const extension = ALLOWED.get(file.type);
   if (!extension) throw new Error("Photos must be JPG, PNG or WebP.");
@@ -22,7 +22,7 @@ export async function savePhoto(file: File) {
 
   const name = `designs/${Date.now()}-${randomBytes(6).toString("hex")}.${extension}`;
 
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
+  if (process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN) {
     const blob = await put(name, file, { access: "public", contentType: file.type });
     return blob.url;
   }
